@@ -3,6 +3,12 @@ package com.zhpan.bannerview;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
+import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.RelativeLayout;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
@@ -11,12 +17,6 @@ import androidx.viewpager2.widget.CompositePageTransformer;
 import androidx.viewpager2.widget.MarginPageTransformer;
 import androidx.viewpager2.widget.ViewPager2;
 
-import android.util.AttributeSet;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.RelativeLayout;
-
 import com.zhpan.bannerview.annotation.AIndicatorGravity;
 import com.zhpan.bannerview.annotation.APageStyle;
 import com.zhpan.bannerview.annotation.Visibility;
@@ -24,10 +24,10 @@ import com.zhpan.bannerview.constants.PageStyle;
 import com.zhpan.bannerview.manager.BannerManager;
 import com.zhpan.bannerview.manager.BannerOptions;
 import com.zhpan.bannerview.provider.ProxyLayoutManger;
+import com.zhpan.bannerview.provider.ViewStyleSetter;
 import com.zhpan.bannerview.transform.OverlapPageTransformer;
 import com.zhpan.bannerview.transform.ScaleInTransformer;
 import com.zhpan.bannerview.utils.BannerUtils;
-import com.zhpan.bannerview.provider.ViewStyleSetter;
 import com.zhpan.indicator.IndicatorView;
 import com.zhpan.indicator.annotation.AIndicatorSlideMode;
 import com.zhpan.indicator.annotation.AIndicatorStyle;
@@ -61,7 +61,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
 
     private BannerManager mBannerManager;
 
-    private Handler mHandler = new Handler();
+    private Handler mHandler = new Handler(Looper.getMainLooper());
 
     private BaseBannerAdapter<T, VH> mBannerPagerAdapter;
 
