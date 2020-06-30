@@ -21,19 +21,57 @@ class AdapterFragmentPager(fragmentActivity: FragmentActivity) : FragmentStateAd
 
     private val fragments: SparseArray<BaseFragment> = SparseArray()
 
-    init {
-        fragments.put(PAGE_HOME, HomeFragment.getInstance())
-        fragments.put(PAGE_FIND, PageFragment.getInstance())
-        fragments.put(PAGE_INDICATOR, IndicatorFragment.getInstance())
-        fragments.put(PAGE_OTHERS, OthersFragment.getInstance())
-    }
-
     override fun createFragment(position: Int): Fragment {
-        return fragments[position]
+        var fragment: Fragment
+        when (position) {
+            PAGE_HOME -> {
+                if (fragments.get(PAGE_HOME) == null) {
+                    fragment = HomeFragment.getInstance();
+                    fragments.put(PAGE_HOME, fragment)
+                } else {
+                    fragment = fragments.get(PAGE_HOME)
+                }
+            }
+            PAGE_FIND -> {
+                if (fragments.get(PAGE_FIND) == null) {
+                    fragment = PageFragment.getInstance();
+                    fragments.put(PAGE_FIND, fragment)
+                } else {
+                    fragment = fragments.get(PAGE_FIND)
+                }
+            }
+
+            PAGE_INDICATOR -> {
+                if (fragments.get(PAGE_INDICATOR) == null) {
+                    fragment = IndicatorFragment.getInstance();
+                    fragments.put(PAGE_INDICATOR, fragment)
+                } else {
+                    fragment = fragments.get(PAGE_INDICATOR)
+                }
+            }
+
+            PAGE_OTHERS -> {
+                if (fragments.get(PAGE_OTHERS) == null) {
+                    fragment = OthersFragment.getInstance();
+                    fragments.put(PAGE_OTHERS, fragment)
+                } else {
+                    fragment = fragments.get(PAGE_OTHERS)
+                }
+            }
+            else -> {
+                if (fragments.get(PAGE_HOME) == null) {
+                    fragment = HomeFragment.getInstance();
+                    fragments.put(PAGE_HOME, fragment)
+                } else {
+                    fragment = fragments.get(PAGE_HOME)
+                }
+            }
+        }
+        return fragment
     }
 
     override fun getItemCount(): Int {
-        return fragments.size()
+        return 4
     }
 
     companion object {

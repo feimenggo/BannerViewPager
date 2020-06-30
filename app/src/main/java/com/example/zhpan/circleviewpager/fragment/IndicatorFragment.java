@@ -6,9 +6,9 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 
 import com.example.zhpan.circleviewpager.R;
-import com.example.zhpan.circleviewpager.adapter.ImageResourceAdapter;
 import com.example.zhpan.circleviewpager.viewholder.ImageResourceViewHolder;
 import com.zhpan.bannerview.BannerViewPager;
+import com.zhpan.bannerview.BaseBannerAdapter;
 import com.zhpan.bannerview.constants.IndicatorGravity;
 import com.zhpan.bannerview.utils.BannerUtils;
 import com.zhpan.idea.utils.ToastUtils;
@@ -66,9 +66,27 @@ public class IndicatorFragment extends BaseFragment {
         mRadioGroupMode = view.findViewById(R.id.rg_slide_mode);
         mViewPager = view.findViewById(R.id.banner_view);
         mViewPager.setIndicatorSliderGap(BannerUtils.dp2px(6))
-                .setAdapter(new ImageResourceAdapter(0))
-                .setRoundCorner(BannerUtils.dp2px(6));
+                .setScrollDuration(800)
+                .setIndicatorGravity(IndicatorGravity.CENTER)
+                .setOnPageClickListener(position -> ToastUtils.show("position:" + position))
+                .setAdapter(new BaseBannerAdapter<Integer, ImageResourceViewHolder>() {
+                    @Override
+                    protected void onBind(ImageResourceViewHolder holder, Integer data, int position, int pageSize) {
+                        holder.bindData(data, position, pageSize);
+                    }
+
+                    @Override
+                    public ImageResourceViewHolder createViewHolder(View itemView, int viewType) {
+                        return new ImageResourceViewHolder(itemView, getResources().getDimensionPixelOffset(R.dimen.dp_8));
+                    }
+
+                    @Override
+                    public int getLayoutId(int viewType) {
+                        return R.layout.item_page_indicator;
+                    }
+                }).create();
         initRadioGroup();
+        mViewPager.setUserInputEnabled(true);
     }
 
 
@@ -86,6 +104,14 @@ public class IndicatorFragment extends BaseFragment {
                 case R.id.rb_smooth:
                     mSlideMode = IndicatorSlideMode.SMOOTH;
                     break;
+                case R.id.rb_color:
+                    mSlideMode = IndicatorSlideMode.COLOR;
+                    break;
+                case R.id.rb_scale:
+                    mSlideMode = IndicatorSlideMode.SCALE;
+                    break;
+                default:
+                    break;
             }
             checkedChange(mCheckId);
         });
@@ -102,45 +128,38 @@ public class IndicatorFragment extends BaseFragment {
             case R.id.rb_round_rect:
                 setupRoundRectIndicator();
                 break;
-            case R.id.rb_tmall:
-                setupTMallIndicator();
+            default:
                 break;
         }
-    }
-
-    private void setupTMallIndicator() {
-        mViewPager
-                .setIndicatorStyle(IndicatorStyle.DASH)
-                .setIndicatorSliderGap(0)
-                .setIndicatorSlideMode(mSlideMode)
-                .setIndicatorSliderColor(getColor(R.color.red_normal_color), getColor(R.color.red_checked_color))
-                .setIndicatorSliderWidth(getResources().getDimensionPixelOffset(R.dimen.dp_15))
-                .setIndicatorHeight(getResources().getDimensionPixelOffset(R.dimen.dp_3))
-                .create(getPicList(4));
     }
 
     private void setupRoundRectIndicator() {
         int checkedWidth = getResources().getDimensionPixelOffset(R.dimen.dp_10);
         int normalWidth = getNormalWidth();
         mViewPager.setIndicatorStyle(IndicatorStyle.ROUND_RECT)
-                .setIndicatorGravity(IndicatorGravity.CENTER)
                 .setIndicatorSliderGap(BannerUtils.dp2px(4))
                 .setIndicatorSlideMode(mSlideMode)
                 .setIndicatorHeight(getResources().getDimensionPixelOffset(R.dimen.dp_4))
-                .setOnPageClickListener(position -> ToastUtils.show("position:" + position))
                 .setIndicatorSliderColor(getColor(R.color.red_normal_color), getColor(R.color.red_checked_color))
-                .setIndicatorSliderWidth(normalWidth, checkedWidth).create(getPicList(4));
+                .setIndicatorSliderWidth(normalWidth, checkedWidth).refreshData(getPicList(4));
     }
 
     private void setupCircleIndicator() {
+        int checkedWidth;
+        int normalWidth;
+        if (mSlideMode == IndicatorSlideMode.SCALE) {
+            checkedWidth = getResources().getDimensionPixelOffset(R.dimen.dp_5);
+            normalWidth = getResources().getDimensionPixelOffset(R.dimen.dp_4);
+        } else {
+            checkedWidth = getResources().getDimensionPixelOffset(R.dimen.dp_4);
+            normalWidth = checkedWidth;
+        }
+
         mViewPager.setIndicatorStyle(IndicatorStyle.CIRCLE)
                 .setIndicatorSlideMode(mSlideMode)
-                .setIndicatorGravity(IndicatorGravity.CENTER)
                 .setIndicatorSliderGap(getResources().getDimensionPixelOffset(R.dimen.dp_6))
-                .setIndicatorHeight(getResources().getDimensionPixelOffset(R.dimen.dp_4))
-                .setOnPageClickListener(position -> ToastUtils.show("position:" + position))
-                .setIndicatorSliderColor(getColor(R.color.red_normal_color), getColor(R.color.red_checked_color))
-                .setIndicatorSliderRadius(getResources().getDimensionPixelOffset(R.dimen.dp_4)).create(getPicList(4));
+                .setIndicatorSliderRadius(normalWidth, checkedWidth)
+                .setIndicatorSliderColor(getColor(R.color.red_normal_color), getColor(R.color.red_checked_color)).refreshData(getPicList(4));
     }
 
     private void setupDashIndicator() {
@@ -148,16 +167,16 @@ public class IndicatorFragment extends BaseFragment {
         int normalWidth = getNormalWidth();
         mViewPager.setIndicatorStyle(IndicatorStyle.DASH)
                 .setIndicatorHeight(getResources().getDimensionPixelOffset(R.dimen.dp_3))
-                .setIndicatorGravity(IndicatorGravity.CENTER)
                 .setIndicatorSlideMode(mSlideMode)
                 .setIndicatorSliderGap(getResources().getDimensionPixelOffset(R.dimen.dp_3))
                 .setIndicatorSliderWidth(normalWidth, checkedWidth)
                 .setIndicatorSliderColor(getColor(R.color.red_normal_color), getColor(R.color.red_checked_color))
-                .create(getPicList(4));
+                .refreshData(getPicList(4));
     }
 
     private int getNormalWidth() {
-        if (mSlideMode == IndicatorSlideMode.SMOOTH || mSlideMode == IndicatorSlideMode.WORM) {
+        if (mSlideMode == IndicatorSlideMode.SMOOTH || mSlideMode == IndicatorSlideMode.WORM
+                || mSlideMode == IndicatorSlideMode.COLOR) {
             return getResources().getDimensionPixelOffset(R.dimen.dp_10);
         } else {
             return getResources().getDimensionPixelOffset(R.dimen.dp_4);

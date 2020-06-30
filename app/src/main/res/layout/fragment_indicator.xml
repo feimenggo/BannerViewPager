@@ -9,9 +9,8 @@
         android:id="@+id/banner_view"
         android:layout_width="match_parent"
         android:layout_height="@dimen/dp_180"
-        android:layout_margin="@dimen/dp_10"
-        app:bvp_indicator_visibility="visible"
-        app:bvp_round_corner="@dimen/dp_8" />
+        android:layout_marginTop="@dimen/dp_16"
+        app:bvp_indicator_visibility="visible" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -67,15 +66,6 @@
                     android:text="ROUND_RECT"
                     android:textSize="@dimen/sp_16" />
 
-                <RadioButton
-                    android:id="@+id/rb_tmall"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="15dp"
-                    android:layout_marginBottom="@dimen/dp_10"
-                    android:text="Tmall Indicator Style"
-                    android:textSize="@dimen/sp_16" />
-
 
             </RadioGroup>
 
@@ -116,6 +106,23 @@
                     android:text="WORM"
                     android:textSize="@dimen/sp_16" />
 
+                <RadioButton
+                    android:id="@+id/rb_color"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="15dp"
+                    android:layout_marginBottom="@dimen/dp_10"
+                    android:text="COLOR"
+                    android:textSize="@dimen/sp_16" />
+
+                <RadioButton
+                    android:id="@+id/rb_scale"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="15dp"
+                    android:layout_marginBottom="@dimen/dp_10"
+                    android:text="SCALE"
+                    android:textSize="@dimen/sp_16" />
 
                 <RadioButton
                     android:id="@+id/rb_normal"
@@ -126,15 +133,6 @@
                     android:text="NORMAL"
                     android:textSize="@dimen/sp_16" />
 
-                <RadioButton
-                    android:id="@+id/rb_scale"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="15dp"
-                    android:layout_marginBottom="@dimen/dp_10"
-                    android:text="SCALE"
-                    android:textSize="@dimen/sp_16"
-                    android:visibility="gone" />
 
             </RadioGroup>
 

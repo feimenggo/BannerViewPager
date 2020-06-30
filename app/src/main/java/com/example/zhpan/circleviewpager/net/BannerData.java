@@ -1,5 +1,7 @@
 package com.example.zhpan.circleviewpager.net;
 
+import android.net.Uri;
+
 /**
  * <pre>
  *   Created by zhangpan on 2019-08-14.
@@ -19,6 +21,8 @@ public class BannerData {
      * url : https://flutter.cn/
      */
 
+    public static final int TYPE_NEW = 10000;
+
     private String desc;
     private int id;
     private String imagePath;
@@ -27,6 +31,15 @@ public class BannerData {
     private String title;
     private int type;
     private String url;
+    private int drawable;
+
+    public int getDrawable() {
+        return drawable;
+    }
+
+    public void setDrawable(int drawable) {
+        this.drawable = drawable;
+    }
 
     public String getDesc() {
         return desc;

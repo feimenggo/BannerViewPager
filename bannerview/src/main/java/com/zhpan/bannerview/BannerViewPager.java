@@ -3,12 +3,6 @@ package com.zhpan.bannerview;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
-import android.util.AttributeSet;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.RelativeLayout;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
@@ -17,39 +11,48 @@ import androidx.viewpager2.widget.CompositePageTransformer;
 import androidx.viewpager2.widget.MarginPageTransformer;
 import androidx.viewpager2.widget.ViewPager2;
 
+import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.RelativeLayout;
+
 import com.zhpan.bannerview.annotation.AIndicatorGravity;
 import com.zhpan.bannerview.annotation.APageStyle;
 import com.zhpan.bannerview.annotation.Visibility;
 import com.zhpan.bannerview.constants.PageStyle;
 import com.zhpan.bannerview.manager.BannerManager;
 import com.zhpan.bannerview.manager.BannerOptions;
-import com.zhpan.bannerview.provider.ProxyLayoutManger;
-import com.zhpan.bannerview.provider.ViewStyleSetter;
+import com.zhpan.bannerview.provider.ScrollDurationManger;
 import com.zhpan.bannerview.transform.OverlapPageTransformer;
 import com.zhpan.bannerview.transform.ScaleInTransformer;
 import com.zhpan.bannerview.utils.BannerUtils;
+import com.zhpan.bannerview.provider.ViewStyleSetter;
 import com.zhpan.indicator.IndicatorView;
 import com.zhpan.indicator.annotation.AIndicatorSlideMode;
 import com.zhpan.indicator.annotation.AIndicatorStyle;
 import com.zhpan.indicator.base.IIndicator;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.zhpan.bannerview.BaseBannerAdapter.MAX_VALUE;
 import static com.zhpan.bannerview.constants.IndicatorGravity.CENTER;
 import static com.zhpan.bannerview.constants.IndicatorGravity.END;
 import static com.zhpan.bannerview.constants.IndicatorGravity.START;
+import static com.zhpan.bannerview.manager.BannerOptions.DEFAULT_REVEAL_WIDTH;
 import static com.zhpan.bannerview.transform.ScaleInTransformer.DEFAULT_MIN_SCALE;
-import static com.zhpan.bannerview.transform.ScaleInTransformer.MAX_SCALE;
 
 /**
  * Created by zhpan on 2017/3/28.
  */
-public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayout {
+public class BannerViewPager<T, VH extends BaseViewHolder<T>> extends RelativeLayout {
 
     private int currentPosition;
 
     private boolean isCustomIndicator;
+
+    private boolean isLooping;
 
     private OnPageClickListener mOnPageClickListener;
 
@@ -61,7 +64,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
 
     private BannerManager mBannerManager;
 
-    private Handler mHandler = new Handler(Looper.getMainLooper());
+    private Handler mHandler = new Handler();
 
     private BaseBannerAdapter<T, VH> mBannerPagerAdapter;
 
@@ -80,7 +83,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
 
     private MarginPageTransformer mMarginPageTransformer;
 
-    private ViewPager2.PageTransformer mPageTransformer;
+    private ViewPager2.PageTransformer mDefaultPageTransformer;
 
     private ViewPager2.OnPageChangeCallback mOnPageChangeCallback = new ViewPager2.OnPageChangeCallback() {
         @Override
@@ -104,10 +107,11 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
             int size = mBannerPagerAdapter.getListSize();
             currentPosition = BannerUtils.getRealPosition(isCanLoop(), position, size);
             if (size > 0 && isCanLoop() && position == 0 || position == MAX_VALUE - 1) {
-                setCurrentItem(currentPosition, false);
+                resetCurrentItem(currentPosition);
             }
-            if (onPageChangeCallback != null)
+            if (onPageChangeCallback != null) {
                 onPageChangeCallback.onPageSelected(currentPosition);
+            }
             if (mIndicatorView != null) {
                 mIndicatorView.onPageSelected(currentPosition);
             }
@@ -168,14 +172,16 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
     public boolean dispatchTouchEvent(MotionEvent ev) {
         switch (ev.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                setLooping(true);
+                isLooping = true;
                 stopLoop();
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
             case MotionEvent.ACTION_OUTSIDE:
-                setLooping(false);
+                isLooping = false;
                 startLoop();
+                break;
+            default:
                 break;
         }
         return super.dispatchTouchEvent(ev);
@@ -183,6 +189,10 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        boolean canIntercept = mViewPager.isUserInputEnabled() || mBannerPagerAdapter != null && mBannerPagerAdapter.getData().size() <= 1;
+        if (!canIntercept) {
+            return super.onInterceptTouchEvent(ev);
+        }
         switch (ev.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 startX = (int) ev.getX();
@@ -194,7 +204,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
                 int endY = (int) ev.getY();
                 int disX = Math.abs(endX - startX);
                 int disY = Math.abs(endY - startY);
-                int orientation = mBannerManager.bannerOptions().getOrientation();
+                int orientation = mBannerManager.getBannerOptions().getOrientation();
                 if (orientation == ViewPager2.ORIENTATION_VERTICAL) {
                     onVerticalActionMove(endY, disX, disY);
                 } else if (orientation == ViewPager2.ORIENTATION_HORIZONTAL) {
@@ -206,6 +216,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
                 getParent().requestDisallowInterceptTouchEvent(false);
                 break;
             case MotionEvent.ACTION_OUTSIDE:
+            default:
                 break;
         }
         return super.onInterceptTouchEvent(ev);
@@ -248,9 +259,8 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
     }
 
     private void handlePosition() {
-        if (mBannerPagerAdapter.getListSize() > 1) {
-            currentPosition = mViewPager.getCurrentItem() + 1;
-            mViewPager.setCurrentItem(currentPosition);
+        if (mBannerPagerAdapter.getListSize() > 1 && isAutoPlay()) {
+            mViewPager.setCurrentItem(mViewPager.getCurrentItem() + 1);
             mHandler.postDelayed(mRunnable, getInterval());
         }
     }
@@ -265,7 +275,8 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
     }
 
     private void setIndicatorValues(List<T> list) {
-        BannerOptions bannerOptions = mBannerManager.bannerOptions();
+        mIndicatorLayout.setVisibility(mBannerManager.getBannerOptions().getIndicatorVisibility());
+        BannerOptions bannerOptions = mBannerManager.getBannerOptions();
         bannerOptions.resetIndicatorOptions();
         if (isCustomIndicator && null != mIndicatorView) {
             initIndicator(mIndicatorView);
@@ -278,7 +289,6 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
     }
 
     private void initIndicator(IIndicator indicatorView) {
-        mIndicatorLayout.setVisibility(mBannerManager.bannerOptions().getIndicatorVisibility());
         mIndicatorView = indicatorView;
         if (((View) mIndicatorView).getParent() == null) {
             mIndicatorLayout.removeAllViews();
@@ -291,7 +301,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
     private void initIndicatorGravity() {
         RelativeLayout.LayoutParams layoutParams =
                 (RelativeLayout.LayoutParams) ((View) mIndicatorView).getLayoutParams();
-        switch (mBannerManager.bannerOptions().getIndicatorGravity()) {
+        switch (mBannerManager.getBannerOptions().getIndicatorGravity()) {
             case CENTER:
                 layoutParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
                 break;
@@ -301,12 +311,14 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
             case END:
                 layoutParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
                 break;
+            default:
+                break;
         }
     }
 
     private void initIndicatorViewMargin() {
         ViewGroup.MarginLayoutParams layoutParams = (MarginLayoutParams) ((View) mIndicatorView).getLayoutParams();
-        BannerOptions.IndicatorMargin indicatorMargin = mBannerManager.bannerOptions().getIndicatorMargin();
+        BannerOptions.IndicatorMargin indicatorMargin = mBannerManager.getBannerOptions().getIndicatorMargin();
         if (indicatorMargin == null) {
             int dp10 = BannerUtils.dp2px(10);
             layoutParams.setMargins(dp10, dp10, dp10, dp10);
@@ -317,7 +329,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
     }
 
     private void initRoundCorner() {
-        int roundCorner = mBannerManager.bannerOptions().getRoundRectRadius();
+        int roundCorner = mBannerManager.getBannerOptions().getRoundRectRadius();
         if (roundCorner > 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             ViewStyleSetter viewStyleSetter = new ViewStyleSetter(this);
             viewStyleSetter.setRoundRect(roundCorner);
@@ -328,9 +340,22 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
         if (mBannerPagerAdapter == null) {
             throw new NullPointerException("You must set adapter for BannerViewPager");
         }
-        BannerOptions bannerOptions = mBannerManager.bannerOptions();
-        if (bannerOptions.getScrollDuration() != 0)
-            ProxyLayoutManger.setScrollProxy(mViewPager, bannerOptions.getScrollDuration());
+        BannerOptions bannerOptions = mBannerManager.getBannerOptions();
+        if (bannerOptions.getScrollDuration() != 0) {
+            ScrollDurationManger.reflectLayoutManager(mViewPager, bannerOptions.getScrollDuration());
+        }
+        if (bannerOptions.getRightRevealWidth() != DEFAULT_REVEAL_WIDTH || bannerOptions.getLeftRevealWidth() != DEFAULT_REVEAL_WIDTH) {
+            RecyclerView recyclerView = (RecyclerView) mViewPager.getChildAt(0);
+            int orientation = bannerOptions.getOrientation();
+            int padding2 = bannerOptions.getPageMargin() + bannerOptions.getRightRevealWidth();
+            int padding1 = bannerOptions.getPageMargin() + bannerOptions.getLeftRevealWidth();
+            if (orientation == ViewPager2.ORIENTATION_HORIZONTAL) {
+                recyclerView.setPadding(padding1, 0, padding2, 0);
+            } else if (orientation == ViewPager2.ORIENTATION_VERTICAL) {
+                recyclerView.setPadding(0, padding1, 0, padding2);
+            }
+            recyclerView.setClipToPadding(false);
+        }
         currentPosition = 0;
         mBannerPagerAdapter.setCanLoop(isCanLoop());
         mBannerPagerAdapter.setPageClickListener(mOnPageClickListener);
@@ -341,66 +366,55 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
         mViewPager.unregisterOnPageChangeCallback(mOnPageChangeCallback);
         mViewPager.registerOnPageChangeCallback(mOnPageChangeCallback);
         mViewPager.setOrientation(bannerOptions.getOrientation());
-        mViewPager.setUserInputEnabled(bannerOptions.isUserInputEnabled());
         mViewPager.setOffscreenPageLimit(bannerOptions.getOffScreenPageLimit());
         initPageStyle();
         startLoop();
     }
 
     private void initPageStyle() {
-        switch (mBannerManager.bannerOptions().getPageStyle()) {
-            case PageStyle.MULTI_PAGE:
-                setMultiPageStyle(false, MAX_SCALE);
-                break;
+        switch (mBannerManager.getBannerOptions().getPageStyle()) {
             case PageStyle.MULTI_PAGE_OVERLAP:
-                setMultiPageStyle(true, DEFAULT_MIN_SCALE);
+                setMultiPageStyle(true, mBannerManager.getBannerOptions().getPageScale());
                 break;
             case PageStyle.MULTI_PAGE_SCALE:
-                setMultiPageStyle(false, DEFAULT_MIN_SCALE);
+                setMultiPageStyle(false, mBannerManager.getBannerOptions().getPageScale());
+                break;
+            default:
                 break;
         }
     }
 
     private void setMultiPageStyle(boolean overlap, float scale) {
-        RecyclerView recyclerView = (RecyclerView) mViewPager.getChildAt(0);
-        BannerOptions bannerOptions = mBannerManager.bannerOptions();
-        int orientation = bannerOptions.getOrientation();
-        int padding = bannerOptions.getPageMargin() + bannerOptions.getRevealWidth();
-        if (orientation == ViewPager2.ORIENTATION_HORIZONTAL)
-            recyclerView.setPadding(padding, 0, padding, 0);
-        else if (orientation == ViewPager2.ORIENTATION_VERTICAL) {
-            recyclerView.setPadding(0, padding, 0, padding);
-        }
-        recyclerView.setClipToPadding(false);
-        if (mPageTransformer != null) {
-            mCompositePageTransformer.removeTransformer(mPageTransformer);
+        if (mDefaultPageTransformer != null) {
+            mCompositePageTransformer.removeTransformer(mDefaultPageTransformer);
         }
         if (overlap && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            mPageTransformer = new OverlapPageTransformer(orientation, scale, scale, 0, 0);
+            mDefaultPageTransformer = new OverlapPageTransformer(mBannerManager.getBannerOptions().getOrientation(), scale, 0f, 1, 0);
         } else {
-            mPageTransformer = new ScaleInTransformer(scale);
+            mDefaultPageTransformer = new ScaleInTransformer(scale);
         }
-        addPageTransformer(mPageTransformer);
+        addPageTransformer(mDefaultPageTransformer);
+    }
+
+
+    private void resetCurrentItem(int item) {
+        if (isCanLoop() && mBannerPagerAdapter.getListSize() > 1) {
+            mViewPager.setCurrentItem(MAX_VALUE / 2 - ((MAX_VALUE / 2) % mBannerPagerAdapter.getListSize()) + 1 + item, false);
+        } else {
+            mViewPager.setCurrentItem(item, false);
+        }
     }
 
     private int getInterval() {
-        return mBannerManager.bannerOptions().getInterval();
+        return mBannerManager.getBannerOptions().getInterval();
     }
 
     private boolean isAutoPlay() {
-        return mBannerManager.bannerOptions().isAutoPlay();
-    }
-
-    private boolean isLooping() {
-        return mBannerManager.bannerOptions().isLooping();
-    }
-
-    private void setLooping(boolean looping) {
-        mBannerManager.bannerOptions().setLooping(looping);
+        return mBannerManager.getBannerOptions().isAutoPlay();
     }
 
     private boolean isCanLoop() {
-        return mBannerManager.bannerOptions().isCanLoop();
+        return mBannerManager.getBannerOptions().isCanLoop();
     }
 
     /**
@@ -414,10 +428,10 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * Start loop
      */
     public void startLoop() {
-        if (!isLooping() && isAutoPlay() && mBannerPagerAdapter != null &&
+        if (!isLooping && isAutoPlay() && mBannerPagerAdapter != null &&
                 mBannerPagerAdapter.getListSize() > 1) {
             mHandler.postDelayed(mRunnable, getInterval());
-            setLooping(true);
+            isLooping = true;
         }
     }
 
@@ -425,15 +439,19 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * stoop loop
      */
     public void stopLoop() {
-        if (isLooping()) {
+        if (isLooping) {
             mHandler.removeCallbacks(mRunnable);
-            setLooping(false);
+            isLooping = false;
         }
     }
 
     public BannerViewPager<T, VH> setAdapter(BaseBannerAdapter<T, VH> adapter) {
         this.mBannerPagerAdapter = adapter;
         return this;
+    }
+
+    public BaseBannerAdapter<T, VH> getAdapter() {
+        return mBannerPagerAdapter;
     }
 
     /**
@@ -444,7 +462,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param radius round radius
      */
     public BannerViewPager<T, VH> setRoundCorner(int radius) {
-        mBannerManager.bannerOptions().setRoundRectRadius(radius);
+        mBannerManager.getBannerOptions().setRoundRectRadius(radius);
         return this;
     }
 
@@ -466,9 +484,9 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param autoPlay is enable auto play
      */
     public BannerViewPager<T, VH> setAutoPlay(boolean autoPlay) {
-        mBannerManager.bannerOptions().setAutoPlay(autoPlay);
+        mBannerManager.getBannerOptions().setAutoPlay(autoPlay);
         if (isAutoPlay()) {
-            mBannerManager.bannerOptions().setCanLoop(true);
+            mBannerManager.getBannerOptions().setCanLoop(true);
         }
         return this;
     }
@@ -479,9 +497,9 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param canLoop is can loop
      */
     public BannerViewPager<T, VH> setCanLoop(boolean canLoop) {
-        mBannerManager.bannerOptions().setCanLoop(canLoop);
+        mBannerManager.getBannerOptions().setCanLoop(canLoop);
         if (!canLoop) {
-            mBannerManager.bannerOptions().setAutoPlay(false);
+            mBannerManager.getBannerOptions().setAutoPlay(false);
         }
         return this;
     }
@@ -492,7 +510,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param interval loop interval,unit is millisecond.
      */
     public BannerViewPager<T, VH> setInterval(int interval) {
-        mBannerManager.bannerOptions().setInterval(interval);
+        mBannerManager.getBannerOptions().setInterval(interval);
         return this;
     }
 
@@ -500,8 +518,9 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param transformer PageTransformer that will modify each page's animation properties
      */
     public BannerViewPager<T, VH> setPageTransformer(@Nullable ViewPager2.PageTransformer transformer) {
-        if (transformer != null)
+        if (transformer != null) {
             mViewPager.setPageTransformer(transformer);
+        }
         return this;
     }
 
@@ -521,6 +540,18 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
         }
     }
 
+    public void removeDefaultPageTransformer() {
+        if (mDefaultPageTransformer != null) {
+            mCompositePageTransformer.removeTransformer(mDefaultPageTransformer);
+        }
+    }
+
+    public void removeMarginPageTransformer() {
+        if (mMarginPageTransformer != null) {
+            mCompositePageTransformer.removeTransformer(mMarginPageTransformer);
+        }
+    }
+
 
     /**
      * set page margin
@@ -528,7 +559,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param pageMargin page margin
      */
     public BannerViewPager<T, VH> setPageMargin(int pageMargin) {
-        mBannerManager.bannerOptions().setPageMargin(pageMargin);
+        mBannerManager.getBannerOptions().setPageMargin(pageMargin);
         if (mMarginPageTransformer != null) {
             mCompositePageTransformer.removeTransformer(mMarginPageTransformer);
         }
@@ -554,7 +585,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param scrollDuration page scroll duration
      */
     public BannerViewPager<T, VH> setScrollDuration(int scrollDuration) {
-        mBannerManager.bannerOptions().setScrollDuration(scrollDuration);
+        mBannerManager.getBannerOptions().setScrollDuration(scrollDuration);
         return this;
     }
 
@@ -566,7 +597,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      */
     public BannerViewPager<T, VH> setIndicatorSliderColor(@ColorInt int normalColor,
                                                           @ColorInt int checkedColor) {
-        mBannerManager.bannerOptions().setIndicatorSliderColor(normalColor, checkedColor);
+        mBannerManager.getBannerOptions().setIndicatorSliderColor(normalColor, checkedColor);
         return this;
     }
 
@@ -593,7 +624,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param checkedRadius checked circle radius
      */
     public BannerViewPager<T, VH> setIndicatorSliderRadius(int normalRadius, int checkedRadius) {
-        mBannerManager.bannerOptions().setIndicatorSliderWidth(normalRadius * 2, checkedRadius * 2);
+        mBannerManager.getBannerOptions().setIndicatorSliderWidth(normalRadius * 2, checkedRadius * 2);
         return this;
     }
 
@@ -614,12 +645,12 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      *                    if the indicator style is {@link com.zhpan.indicator.enums.IndicatorStyle#CIRCLE } means checked circle diameter
      */
     public BannerViewPager<T, VH> setIndicatorSliderWidth(int normalWidth, int checkWidth) {
-        mBannerManager.bannerOptions().setIndicatorSliderWidth(normalWidth, checkWidth);
+        mBannerManager.getBannerOptions().setIndicatorSliderWidth(normalWidth, checkWidth);
         return this;
     }
 
     public BannerViewPager<T, VH> setIndicatorHeight(int indicatorHeight) {
-        mBannerManager.bannerOptions().setIndicatorHeight(indicatorHeight);
+        mBannerManager.getBannerOptions().setIndicatorHeight(indicatorHeight);
         return this;
     }
 
@@ -629,7 +660,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param indicatorGap indicator gap
      */
     public BannerViewPager<T, VH> setIndicatorSliderGap(int indicatorGap) {
-        mBannerManager.bannerOptions().setIndicatorGap(indicatorGap);
+        mBannerManager.getBannerOptions().setIndicatorGap(indicatorGap);
         return this;
     }
 
@@ -639,7 +670,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param visibility One of {@link View#VISIBLE}, {@link View#INVISIBLE}, or {@link View#GONE}.
      */
     public BannerViewPager<T, VH> setIndicatorVisibility(@Visibility int visibility) {
-        mBannerManager.bannerOptions().setIndicatorVisibility(visibility);
+        mBannerManager.getBannerOptions().setIndicatorVisibility(visibility);
         return this;
     }
 
@@ -652,7 +683,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      *                {@link com.zhpan.bannerview.constants.IndicatorGravity#END}
      */
     public BannerViewPager<T, VH> setIndicatorGravity(@AIndicatorGravity int gravity) {
-        mBannerManager.bannerOptions().setIndicatorGravity(gravity);
+        mBannerManager.getBannerOptions().setIndicatorGravity(gravity);
         return this;
     }
 
@@ -664,7 +695,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @see com.zhpan.indicator.enums.IndicatorSlideMode#SMOOTH
      */
     public BannerViewPager<T, VH> setIndicatorSlideMode(@AIndicatorSlideMode int slideMode) {
-        mBannerManager.bannerOptions().setIndicatorSlideMode(slideMode);
+        mBannerManager.getBannerOptions().setIndicatorSlideMode(slideMode);
         return this;
     }
 
@@ -692,10 +723,14 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @see com.zhpan.indicator.enums.IndicatorStyle#ROUND_RECT
      */
     public BannerViewPager<T, VH> setIndicatorStyle(@AIndicatorStyle int indicatorStyle) {
-        mBannerManager.bannerOptions().setIndicatorStyle(indicatorStyle);
+        mBannerManager.getBannerOptions().setIndicatorStyle(indicatorStyle);
         return this;
     }
 
+    /**
+     * Create BannerViewPager with data.
+     * If data has fetched when create BannerViewPager,you can call this method.
+     */
     public void create(List<T> data) {
         if (mBannerPagerAdapter == null) {
             throw new NullPointerException("You must set adapter for BannerViewPager");
@@ -705,20 +740,42 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
     }
 
     /**
+     * Create BannerViewPager with no data
+     * If there is no data while you create BannerViewPager(for example,The data is from remote server)，you can call this method.
+     * Then,while you fetch data successfully,just need call {@link #refreshData(List)} method to refresh.
+     */
+    public void create() {
+        create(new ArrayList<T>());
+    }
+
+    /**
      * Sets the orientation of the ViewPager2.
      *
      * @param orientation {@link androidx.viewpager2.widget.ViewPager2#ORIENTATION_HORIZONTAL} or
      *                    {@link androidx.viewpager2.widget.ViewPager2#ORIENTATION_VERTICAL}
      */
     public BannerViewPager<T, VH> setOrientation(@ViewPager2.Orientation int orientation) {
-        mBannerManager.bannerOptions().setOrientation(orientation);
+        mBannerManager.getBannerOptions().setOrientation(orientation);
         return this;
     }
 
-    public void setData(List<T> list) {
+    /**
+     * Refresh data.
+     * Confirm the {@link #create()} or {@link #create(List)} method has been called,
+     * else the data won't be shown.
+     */
+    public void refreshData(List<T> list) {
         if (list != null && mBannerPagerAdapter != null) {
+            stopLoop();
             mBannerPagerAdapter.setData(list);
-            initBannerData();
+            mBannerPagerAdapter.notifyDataSetChanged();
+            resetCurrentItem(getCurrentItem());
+            setIndicatorValues(list);
+            mBannerManager.getBannerOptions().getIndicatorOptions()
+                    .setCurrentPosition(BannerUtils.getRealPosition(isCanLoop(),
+                            mViewPager.getCurrentItem(), list.size()));
+            mIndicatorView.notifyDataChanged();
+            startLoop();
         }
     }
 
@@ -738,7 +795,19 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      */
     public void setCurrentItem(int item) {
         if (isCanLoop() && mBannerPagerAdapter.getListSize() > 1) {
-            mViewPager.setCurrentItem(MAX_VALUE / 2 - ((MAX_VALUE / 2) % mBannerPagerAdapter.getListSize()) + 1 + item);
+            int currentItem = mViewPager.getCurrentItem();
+            int pageSize = mBannerPagerAdapter.getListSize();
+            int realPosition = BannerUtils.getRealPosition(isCanLoop(), currentItem, mBannerPagerAdapter.getListSize());
+            if (currentItem != item) {
+                if (item == 0 && realPosition == pageSize - 1) {
+                    mViewPager.setCurrentItem(currentItem + 1);
+                } else if (realPosition == 0 && item == pageSize - 1) {
+                    mViewPager.setCurrentItem(currentItem - 1);
+                } else {
+                    mViewPager.setCurrentItem(currentItem + (item - realPosition));
+                }
+                mViewPager.setCurrentItem(currentItem + (item - realPosition));
+            }
         } else {
             mViewPager.setCurrentItem(item);
         }
@@ -752,7 +821,18 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      */
     public void setCurrentItem(int item, boolean smoothScroll) {
         if (isCanLoop() && mBannerPagerAdapter.getListSize() > 1) {
-            mViewPager.setCurrentItem(MAX_VALUE / 2 - ((MAX_VALUE / 2) % mBannerPagerAdapter.getListSize()) + 1 + item, smoothScroll);
+            int pageSize = mBannerPagerAdapter.getListSize();
+            int currentItem = mViewPager.getCurrentItem();
+            int realPosition = BannerUtils.getRealPosition(isCanLoop(), currentItem, pageSize);
+            if (currentItem != item) {
+                if (item == 0 && realPosition == pageSize - 1) {
+                    mViewPager.setCurrentItem(currentItem + 1, smoothScroll);
+                } else if (realPosition == 0 && item == pageSize - 1) {
+                    mViewPager.setCurrentItem(currentItem - 1, smoothScroll);
+                } else {
+                    mViewPager.setCurrentItem(currentItem + (item - realPosition), smoothScroll);
+                }
+            }
         } else {
             mViewPager.setCurrentItem(item, smoothScroll);
         }
@@ -766,7 +846,12 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @return BannerViewPager
      */
     public BannerViewPager<T, VH> setPageStyle(@APageStyle int pageStyle) {
-        mBannerManager.bannerOptions().setPageStyle(pageStyle);
+        return setPageStyle(pageStyle, DEFAULT_MIN_SCALE);
+    }
+
+    public BannerViewPager<T, VH> setPageStyle(@APageStyle int pageStyle, float pageScale) {
+        mBannerManager.getBannerOptions().setPageStyle(pageStyle);
+        mBannerManager.getBannerOptions().setPageScale(pageScale);
         return this;
     }
 
@@ -775,26 +860,40 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      * @param revealWidth 一屏多页模式下两边页面显露出来的宽度
      */
     public BannerViewPager<T, VH> setRevealWidth(int revealWidth) {
-        mBannerManager.bannerOptions().setRevealWidth(revealWidth);
+        setRevealWidth(revealWidth, revealWidth);
         return this;
     }
 
     /**
-     * 建议使用默认的offScreenPageLimit
+     * @param leftRevealWidth  left page item  reveal width
+     * @param rightRevealWidth right page item reveal width
+     */
+    public BannerViewPager<T, VH> setRevealWidth(int leftRevealWidth, int rightRevealWidth) {
+        mBannerManager.getBannerOptions().setRightRevealWidth(rightRevealWidth);
+        mBannerManager.getBannerOptions().setLeftRevealWidth(leftRevealWidth);
+        return this;
+    }
+
+    /**
+     * Suggest to use default offScreenPageLimit.
      */
     public BannerViewPager<T, VH> setOffScreenPageLimit(int offScreenPageLimit) {
-        mBannerManager.bannerOptions().setOffScreenPageLimit(offScreenPageLimit);
+        mBannerManager.getBannerOptions().setOffScreenPageLimit(offScreenPageLimit);
         return this;
     }
 
 
     public BannerViewPager<T, VH> setIndicatorMargin(int left, int top, int right, int bottom) {
-        mBannerManager.bannerOptions().setIndicatorMargin(left, top, right, bottom);
+        mBannerManager.getBannerOptions().setIndicatorMargin(left, top, right, bottom);
         return this;
     }
 
+    /**
+     * Enable or disable user initiated scrolling
+     */
     public BannerViewPager<T, VH> setUserInputEnabled(boolean userInputEnabled) {
-        mBannerManager.bannerOptions().setUserInputEnabled(userInputEnabled);
+        mBannerManager.getBannerOptions().setUserInputEnabled(userInputEnabled);
+        mViewPager.setUserInputEnabled(userInputEnabled);
         return this;
     }
 
@@ -822,7 +921,7 @@ public class BannerViewPager<T, VH extends BaseViewHolder> extends RelativeLayou
      */
     @Deprecated
     public BannerViewPager<T, VH> disableTouchScroll(boolean disableTouchScroll) {
-        mBannerManager.bannerOptions().setUserInputEnabled(!disableTouchScroll);
+        mBannerManager.getBannerOptions().setUserInputEnabled(!disableTouchScroll);
         return this;
     }
 

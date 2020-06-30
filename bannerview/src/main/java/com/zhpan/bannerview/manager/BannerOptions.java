@@ -1,10 +1,14 @@
 package com.zhpan.bannerview.manager;
 
+import android.view.View;
+
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.zhpan.bannerview.constants.PageStyle;
 import com.zhpan.bannerview.utils.BannerUtils;
 import com.zhpan.indicator.option.IndicatorOptions;
+
+import static com.zhpan.bannerview.transform.ScaleInTransformer.DEFAULT_MIN_SCALE;
 
 /**
  * <pre>
@@ -17,16 +21,15 @@ public class BannerOptions {
     public BannerOptions() {
         mIndicatorOptions = new IndicatorOptions();
         pageMargin = BannerUtils.dp2px(20);
-        revealWidth = BannerUtils.dp2px(20);
+        rightRevealWidth = DEFAULT_REVEAL_WIDTH;
+        leftRevealWidth = DEFAULT_REVEAL_WIDTH;
     }
+
+    public static final int DEFAULT_REVEAL_WIDTH = -1000;
 
     private int offScreenPageLimit = ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT;
 
     private int interval;
-
-    private int currentPosition;
-
-    private boolean isLooping;
 
     private boolean isCanLoop;
 
@@ -36,13 +39,17 @@ public class BannerOptions {
 
     private int pageMargin;
 
-    private int revealWidth;
+    private int rightRevealWidth;
+
+    private int leftRevealWidth;
 
     private int pageStyle = PageStyle.NORMAL;
 
+    private float pageScale = DEFAULT_MIN_SCALE;
+
     private IndicatorMargin mIndicatorMargin;
 
-    private int mIndicatorVisibility;
+    private int mIndicatorVisibility = View.VISIBLE;
 
     private int scrollDuration;
 
@@ -60,22 +67,6 @@ public class BannerOptions {
 
     public void setInterval(int interval) {
         this.interval = interval;
-    }
-
-    public int getCurrentPosition() {
-        return currentPosition;
-    }
-
-    public void setCurrentPosition(int currentPosition) {
-        this.currentPosition = currentPosition;
-    }
-
-    public boolean isLooping() {
-        return isLooping;
-    }
-
-    public void setLooping(boolean looping) {
-        isLooping = looping;
     }
 
     public boolean isCanLoop() {
@@ -140,12 +131,20 @@ public class BannerOptions {
         this.pageMargin = pageMargin;
     }
 
-    public int getRevealWidth() {
-        return revealWidth;
+    public int getRightRevealWidth() {
+        return rightRevealWidth;
     }
 
-    public void setRevealWidth(int revealWidth) {
-        this.revealWidth = revealWidth;
+    public void setRightRevealWidth(int rightRevealWidth) {
+        this.rightRevealWidth = rightRevealWidth;
+    }
+
+    public int getLeftRevealWidth() {
+        return leftRevealWidth;
+    }
+
+    public void setLeftRevealWidth(int leftRevealWidth) {
+        this.leftRevealWidth = leftRevealWidth;
     }
 
     public int getIndicatorStyle() {
@@ -186,6 +185,14 @@ public class BannerOptions {
 
     public void setPageStyle(int pageStyle) {
         this.pageStyle = pageStyle;
+    }
+
+    public float getPageScale() {
+        return pageScale;
+    }
+
+    public void setPageScale(float pageScale) {
+        this.pageScale = pageScale;
     }
 
     public IndicatorMargin getIndicatorMargin() {

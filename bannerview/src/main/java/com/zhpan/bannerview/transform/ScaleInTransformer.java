@@ -8,7 +8,6 @@ public class ScaleInTransformer implements ViewPager2.PageTransformer {
 
     private static final float DEFAULT_CENTER = 0.5f;
     public static final float DEFAULT_MIN_SCALE = 0.85f;
-    public static final float MAX_SCALE = 0.999f;
     private float mMinScale;
 
     public ScaleInTransformer(float minScale) {
@@ -20,8 +19,8 @@ public class ScaleInTransformer implements ViewPager2.PageTransformer {
         int pageWidth = view.getWidth();
         int pageHeight = view.getHeight();
 
-        view.setPivotY(pageHeight / 2);
-        view.setPivotX(pageWidth / 2);
+        view.setPivotY(pageHeight / 2f);
+        view.setPivotX(pageWidth / 2f);
         if (position < -1) {
             // This page is way off-screen to the left.
             view.setScaleX(mMinScale);

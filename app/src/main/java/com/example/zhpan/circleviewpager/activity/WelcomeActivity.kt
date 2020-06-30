@@ -26,7 +26,7 @@ class WelcomeActivity : BaseDataActivity() {
 
     private val des = arrayOf("在这里\n你可以听到周围人的心声", "在这里\nTA会在下一秒遇见你", "在这里\n不再错过可以改变你一生的人")
 
-    private val transforms = intArrayOf(TransformerStyle.NONE, TransformerStyle.ACCORDION, TransformerStyle.STACK, TransformerStyle.DEPTH, TransformerStyle.ROTATE, TransformerStyle.SCALE_IN)
+    private val transforms = intArrayOf(TransformerStyle.NONE, TransformerStyle.ACCORDION,  TransformerStyle.DEPTH, TransformerStyle.ROTATE, TransformerStyle.SCALE_IN)
 
     private val data: List<CustomBean>
         get() {
@@ -49,25 +49,25 @@ class WelcomeActivity : BaseDataActivity() {
 
     private fun setupViewPager() {
         mViewPager = findViewById(R.id.viewpager)
-        val welcomeAdapter = WelcomeAdapter()
-        welcomeAdapter.mOnSubViewClickListener = CustomPageViewHolder.OnSubViewClickListener { _, position -> ToastUtils.show("Logo Clicked,position:$position") }
-        mViewPager.setAutoPlay(false)
-                .setCanLoop(false)
-                .setPageTransformer(PageTransformerFactory.createPageTransformer(Random().nextInt(6)))
-                .setIndicatorMargin(0, 0, 0, resources.getDimension(R.dimen.dp_100).toInt())
-                .setIndicatorSliderGap(resources.getDimension(R.dimen.dp_10).toInt())
-                .setIndicatorSliderColor(ContextCompat.getColor(this, R.color.white),
-                        ContextCompat.getColor(this, R.color.white_alpha_75))
-                .setIndicatorSlideMode(IndicatorSlideMode.SMOOTH)
-                .setIndicatorSliderRadius(resources.getDimension(R.dimen.dp_3).toInt(), resources.getDimension(R.dimen.dp_4_5).toInt())
-                .setAdapter(welcomeAdapter)
-                .registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-                    override fun onPageSelected(position: Int) {
-                        BannerUtils.log("position:$position")
-                        updateUI(position)
-                    }
-                })
-                .create(data)
+        mViewPager.apply {
+            setCanLoop(false)
+            setPageTransformer(PageTransformerFactory.createPageTransformer(transforms[Random().nextInt(5)]))
+            setIndicatorMargin(0, 0, 0, resources.getDimension(R.dimen.dp_100).toInt())
+            setIndicatorSliderGap(resources.getDimension(R.dimen.dp_10).toInt())
+            setIndicatorSlideMode(IndicatorSlideMode.SMOOTH)
+            setIndicatorSliderRadius(resources.getDimension(R.dimen.dp_3).toInt(), resources.getDimension(R.dimen.dp_4_5).toInt())
+            registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+                override fun onPageSelected(position: Int) {
+                    BannerUtils.log("position:$position")
+                    updateUI(position)
+                }
+            })
+            adapter = WelcomeAdapter().apply {
+                mOnSubViewClickListener = CustomPageViewHolder.OnSubViewClickListener { _, position -> ToastUtils.show("Logo Clicked,position:$position") }
+            }
+            setIndicatorSliderColor(ContextCompat.getColor(this@WelcomeActivity, R.color.white),
+                    ContextCompat.getColor(this@WelcomeActivity, R.color.white_alpha_75))
+        }.create(data)
     }
 
     fun onClick(view: View) {
