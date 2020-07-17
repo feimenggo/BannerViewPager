@@ -12,6 +12,10 @@ import android.widget.RelativeLayout;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleObserver;
+import androidx.lifecycle.LifecycleRegistry;
+import androidx.lifecycle.OnLifecycleEvent;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.CompositePageTransformer;
 import androidx.viewpager2.widget.MarginPageTransformer;
@@ -46,7 +50,7 @@ import static com.zhpan.bannerview.transform.ScaleInTransformer.DEFAULT_MIN_SCAL
 /**
  * Created by zhpan on 2017/3/28.
  */
-public class BannerViewPager<T, VH extends BaseViewHolder<T>> extends RelativeLayout {
+public class BannerViewPager<T, VH extends BaseViewHolder<T>> extends RelativeLayout implements LifecycleObserver {
 
     private int currentPosition;
 
@@ -84,6 +88,9 @@ public class BannerViewPager<T, VH extends BaseViewHolder<T>> extends RelativeLa
     private MarginPageTransformer mMarginPageTransformer;
 
     private ViewPager2.PageTransformer mDefaultPageTransformer;
+
+    private boolean disallowIntercept;
+
 
     private ViewPager2.OnPageChangeCallback mOnPageChangeCallback = new ViewPager2.OnPageChangeCallback() {
         @Override
@@ -197,7 +204,9 @@ public class BannerViewPager<T, VH extends BaseViewHolder<T>> extends RelativeLa
             case MotionEvent.ACTION_DOWN:
                 startX = (int) ev.getX();
                 startY = (int) ev.getY();
-                getParent().requestDisallowInterceptTouchEvent(true);
+                if (!disallowIntercept) {
+                    getParent().requestDisallowInterceptTouchEvent(true);
+                }
                 break;
             case MotionEvent.ACTION_MOVE:
                 int endX = (int) ev.getX();
@@ -922,6 +931,35 @@ public class BannerViewPager<T, VH extends BaseViewHolder<T>> extends RelativeLa
     @Deprecated
     public BannerViewPager<T, VH> disableTouchScroll(boolean disableTouchScroll) {
         mBannerManager.getBannerOptions().setUserInputEnabled(!disableTouchScroll);
+        return this;
+    }
+
+    public BannerViewPager<T, VH> setLifecycleRegistry(Lifecycle lifecycleRegistry) {
+        lifecycleRegistry.addObserver(this);
+        return this;
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+    public void onPause() {
+        stopLoop();
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    public void onResume() {
+        startLoop();
+    }
+
+    /**
+     * 设置是否允许BVP对事件进行拦截，用于解决CoordinatorLayout+CollapsingToolbarLayout
+     * 在嵌套BVP时引起的滑动冲突问题。
+     * BVP在处理ViewPager2嵌套滑动冲突时，在{@link #onInterceptTouchEvent(MotionEvent)}方法中
+     * 对事件进行了处理导致CoordinatorLayout+CollapsingToolbarLayout的布局中滑动BVP的事件无效。
+     * 对于这种情况可以调用该方法来禁止BVP对事件进行拦截。
+     *
+     * @param disallowIntercept true 禁止BVP拦截事件，false 允许BVP拦截事件
+     */
+    public BannerViewPager<T, VH> disallowInterceptTouchEvent(boolean disallowIntercept) {
+        this.disallowIntercept = disallowIntercept;
         return this;
     }
 

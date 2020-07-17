@@ -71,24 +71,12 @@ public class HomeFragment extends BaseFragment {
     public void onPause() {
         super.onPause();
         LogUtils.e("HomeFragment", "onPause");
-        if (mViewPagerHorizontal != null) {
-            mViewPagerHorizontal.stopLoop();
-        }
-        if (mViewPagerVertical != null) {
-            mViewPagerVertical.stopLoop();
-        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
         LogUtils.e("HomeFragment", "onResume");
-        if (mViewPagerHorizontal != null) {
-            mViewPagerHorizontal.startLoop();
-        }
-        if (mViewPagerVertical != null) {
-            mViewPagerVertical.startLoop();
-        }
     }
 
     @Override
@@ -104,12 +92,16 @@ public class HomeFragment extends BaseFragment {
     }
 
     private void initRecyclerView(View view) {
+        mViewPagerHorizontal = view.findViewById(R.id.banner_view);
+        mRlIndicator = view.findViewById(R.id.layout_indicator);
+        mTvTitle = view.findViewById(R.id.tv_title);
+        mIndicatorView = view.findViewById(R.id.indicator_view);
         recyclerView = view.findViewById(R.id.recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(getMContext()));
         recyclerView.addHeadView(getHeaderView(), true);
         recyclerView.addItemDecoration(new DividerItemDecoration(getMContext(),
                 DividerItemDecoration.VERTICAL));
-        articleAdapter = new ArticleAdapter(getMContext(), new ArrayList<>());
+        articleAdapter = new ArticleAdapter(getActivity(), new ArrayList<>());
         recyclerView.setAdapter(articleAdapter);
         recyclerView.getHeadAndFootAdapter();
     }
@@ -141,6 +133,7 @@ public class HomeFragment extends BaseFragment {
                         article.setPagers(getPicList(3));
                         articleList.add(4, article);
                         articleAdapter.setData(articleList);
+                        recyclerView.getAdapter().notifyDataSetChanged();
                         if (response.getDataBeanList().size() > 0) {
                             mRlIndicator.setVisibility(View.VISIBLE);
                         }
@@ -167,12 +160,14 @@ public class HomeFragment extends BaseFragment {
         HomeAdapter homeAdapter = new HomeAdapter();
         mViewPagerHorizontal
                 .setScrollDuration(600)
+                .setLifecycleRegistry(getLifecycle())
                 .setIndicatorStyle(IndicatorStyle.CIRCLE)
                 .setIndicatorSlideMode(IndicatorSlideMode.WORM)
                 .setInterval(3000)
                 .setIndicatorGravity(IndicatorGravity.END)
                 .setIndicatorSliderRadius(getResources().getDimensionPixelSize(R.dimen.dp_3))
-                .setIndicatorView(mIndicatorView)// 这里为了设置标题故用了自定义Indicator,如果无需标题则没必要添加此行代码
+                .disallowInterceptTouchEvent(true)
+                .setIndicatorView(mIndicatorView)   // 这里为了设置标题故用了自定义Indicator,如果无需标题则没必要添加此行代码
                 .setIndicatorSliderColor(getColor(R.color.red_normal_color), getColor(R.color.red_checked_color))
                 .setAdapter(homeAdapter)
                 .registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
@@ -184,10 +179,10 @@ public class HomeFragment extends BaseFragment {
                     }
                 })
                 .setOnPageClickListener(this::onPageClicked).create();
-
         mViewPagerVertical
                 .setAutoPlay(true)
                 .setScrollDuration(500)
+                .setLifecycleRegistry(getLifecycle())
                 .setIndicatorStyle(IndicatorStyle.ROUND_RECT)
                 .setIndicatorSlideMode(IndicatorSlideMode.SCALE)
                 .setIndicatorSliderGap(getResources().getDimensionPixelOffset(R.dimen.dp_4))
@@ -211,11 +206,7 @@ public class HomeFragment extends BaseFragment {
 
     private View getHeaderView() {
         headerView = LayoutInflater.from(getMContext()).inflate(R.layout.item_header_view, recyclerView, false);
-        mRlIndicator = headerView.findViewById(R.id.layout_indicator);
-        mViewPagerHorizontal = headerView.findViewById(R.id.banner_view);
         mViewPagerVertical = headerView.findViewById(R.id.banner_view2);
-        mTvTitle = headerView.findViewById(R.id.tv_title);
-        mIndicatorView = headerView.findViewById(R.id.indicator_view);
         return headerView;
     }
 }
